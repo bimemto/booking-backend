@@ -10,12 +10,33 @@ const adminDriverRoutes = require('./routes/adminDriverRoutes');
 const adminCustomerRoutes = require('./routes/adminCustomerRoutes');
 const adminHotelRoutes = require('./routes/adminHotelRoutes');
 const hotelRoutes = require('./routes/hotelRoutes');
+const seedRoutes = require('./routes/seedRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// CORS Configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',')
+  : ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174'];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
 // Middleware
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -45,6 +66,7 @@ app.use('/api/admin/drivers', adminDriverRoutes);
 app.use('/api/admin/customers', adminCustomerRoutes);
 app.use('/api/admin/hotels', adminHotelRoutes);
 app.use('/api/hotels', hotelRoutes);
+app.use('/api/seed', seedRoutes);
 app.use('/api', bookingRoutes);
 
 // 404 handler
