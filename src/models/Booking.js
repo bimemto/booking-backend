@@ -22,17 +22,29 @@ const bookingSchema = new mongoose.Schema({
       message: 'Invalid phone number format (must start with 0 and be 10-11 digits)'
     }
   },
-  pickupLocation: {
+  email: {
     type: String,
-    required: [true, 'Pickup location is required'],
     trim: true,
-    minlength: [1, 'Pickup location cannot be empty']
+    lowercase: true,
+    validate: {
+      validator: function(v) {
+        // Email is optional, but if provided, must be valid
+        if (!v || v.trim().length === 0) return true;
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      },
+      message: 'Invalid email format'
+    }
   },
-  dropoffLocation: {
+  hotel: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Hotel',
+    required: [true, 'Hotel is required']
+  },
+  arrivalTime: {
     type: String,
-    required: [true, 'Dropoff location is required'],
+    required: [true, 'Arrival time is required'],
     trim: true,
-    minlength: [1, 'Dropoff location cannot be empty']
+    minlength: [1, 'Arrival time cannot be empty']
   },
   numberOfBags: {
     type: Number,
@@ -40,9 +52,51 @@ const bookingSchema = new mongoose.Schema({
     min: [1, 'Number of bags must be at least 1'],
     max: [5, 'Number of bags cannot exceed 5']
   },
+  deviceId: {
+    type: String,
+    required: [true, 'Device ID is required'],
+    trim: true,
+    index: true
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'confirmed', 'assigned', 'in_progress', 'completed', 'cancelled'],
+    default: 'pending'
+  },
   isPickedUp: {
     type: Boolean,
     default: false
+  },
+  pickedUpAt: {
+    type: Date,
+    default: null
+  },
+  assignedDriver: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Driver',
+    default: null
+  },
+  notes: {
+    type: String,
+    default: '',
+    trim: true
+  },
+  confirmedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null
+  },
+  confirmedAt: {
+    type: Date,
+    default: null
+  },
+  completedAt: {
+    type: Date,
+    default: null
+  },
+  completionImages: {
+    type: [String],
+    default: []
   }
 }, {
   timestamps: true, // Automatically adds createdAt and updatedAt
@@ -73,17 +127,21 @@ bookingSchema.statics.validateBooking = function(data) {
     errors.push('Invalid phone number format (must start with 0 and be 10-11 digits)');
   }
 
-  if (!data.pickupLocation || data.pickupLocation.trim().length === 0) {
-    errors.push('Pickup location is required');
+  if (!data.hotel) {
+    errors.push('Hotel is required');
   }
 
-  if (!data.dropoffLocation || data.dropoffLocation.trim().length === 0) {
-    errors.push('Dropoff location is required');
+  if (!data.arrivalTime || data.arrivalTime.trim().length === 0) {
+    errors.push('Arrival time is required');
   }
 
   const bags = parseInt(data.numberOfBags);
   if (isNaN(bags) || bags < 1 || bags > 5) {
     errors.push('Number of bags must be between 1 and 5');
+  }
+
+  if (!data.deviceId || data.deviceId.trim().length === 0) {
+    errors.push('Device ID is required');
   }
 
   return {

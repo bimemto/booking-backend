@@ -1,0 +1,1669 @@
+openapi: 3.0.3
+info:
+  title: Booking API
+  description: API documentation for Booking Backend - Driver and Admin authentication, and booking management
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+  - url: https://api.example.com
+    description: Production server (update with your actual URL)
+
+tags:
+  - name: Driver Authentication
+    description: Driver registration, login, and profile management
+  - name: Admin Authentication
+    description: Admin login and profile management
+  - name: Booking
+    description: Booking creation and management
+  - name: Driver Booking
+    description: Driver booking operations - view assigned bookings
+  - name: Hotel
+    description: Public hotel search for mobile app (no authentication required)
+  - name: Admin Booking Management
+    description: Admin booking operations - view, update, and manage bookings
+  - name: Admin Hotel Management
+    description: Admin hotel CRUD operations and autocomplete search
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for driver authentication
+    bearerAuthAdmin:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for admin authentication
+
+  schemas:
+    # Driver Schemas
+    VehicleInfo:
+      type: object
+      required:
+        - vehicleType
+        - vehicleMake
+        - vehicleModel
+        - vehicleYear
+        - licensePlate
+      properties:
+        vehicleType:
+          type: string
+          example: "Sedan"
+        vehicleMake:
+          type: string
+          example: "Toyota"
+        vehicleModel:
+          type: string
+          example: "Camry"
+        vehicleYear:
+          type: integer
+          minimum: 1900
+          example: 2020
+        licensePlate:
+          type: string
+          example: "ABC123"
+        vehicleColor:
+          type: string
+          example: "Black"
+
+    DriverRegistration:
+      type: object
+      required:
+        - name
+        - phone
+        - driverLicenseNumber
+        - password
+        - vehicleInfo
+      properties:
+        name:
+          type: string
+          minLength: 2
+          example: "Nguyen Van A"
+        phone:
+          type: string
+          pattern: '^0\d{9,10}$'
+          example: "0912345678"
+          description: "Must start with 0 and be 10-11 digits"
+        driverLicenseNumber:
+          type: string
+          minLength: 5
+          example: "B123456789"
+        password:
+          type: string
+          minLength: 6
+          example: "password123"
+        vehicleInfo:
+          $ref: '#/components/schemas/VehicleInfo'
+
+    DriverLogin:
+      type: object
+      required:
+        - phone
+        - password
+      properties:
+        phone:
+          type: string
+          pattern: '^0\d{9,10}$'
+          example: "0912345678"
+        password:
+          type: string
+          example: "password123"
+
+    Driver:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        name:
+          type: string
+          example: "Nguyen Van A"
+        phone:
+          type: string
+          example: "0912345678"
+        driverLicenseNumber:
+          type: string
+          example: "B123456789"
+        vehicleInfo:
+          $ref: '#/components/schemas/VehicleInfo'
+        isActive:
+          type: boolean
+          example: true
+        isVerified:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Admin Schemas
+    AdminLogin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "admin@example.com"
+        password:
+          type: string
+          example: "admin123"
+
+    Admin:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        name:
+          type: string
+          example: "Admin User"
+        email:
+          type: string
+          format: email
+          example: "admin@example.com"
+        role:
+          type: string
+          enum: [admin, super_admin]
+          example: "admin"
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Booking Schemas
+    BookingCreate:
+      type: object
+      required:
+        - fullName
+        - phoneNumber
+        - hotel
+        - arrivalTime
+        - numberOfBags
+        - deviceId
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          example: "Tran Thi B"
+        phoneNumber:
+          type: string
+          pattern: '^0\d{9,10}$'
+          example: "0987654321"
+          description: "Must start with 0 and be 10-11 digits"
+        hotel:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+          description: "Hotel ID (ObjectId reference)"
+        arrivalTime:
+          type: string
+          example: "2024-12-25 14:30"
+        numberOfBags:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 2
+        deviceId:
+          type: string
+          example: "abc123-device-uuid-456"
+          description: "Unique device identifier from mobile app"
+
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        fullName:
+          type: string
+          example: "Tran Thi B"
+        phoneNumber:
+          type: string
+          example: "0987654321"
+        hotel:
+          oneOf:
+            - type: string
+              example: "507f1f77bcf86cd799439011"
+              description: "Hotel ID when not populated"
+            - $ref: '#/components/schemas/Hotel'
+          description: "Hotel reference (can be ID or populated hotel object)"
+        arrivalTime:
+          type: string
+          example: "2024-12-25 14:30"
+        numberOfBags:
+          type: integer
+          example: 2
+        deviceId:
+          type: string
+          example: "abc123-device-uuid-456"
+        status:
+          type: string
+          enum: [pending, confirmed, assigned, in_progress, completed, cancelled]
+          example: "pending"
+        isPickedUp:
+          type: boolean
+          example: false
+        pickedUpAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: "Timestamp when the booking was picked up by driver"
+        assignedDriver:
+          oneOf:
+            - type: string
+              example: "507f1f77bcf86cd799439011"
+            - $ref: '#/components/schemas/Driver'
+          description: "Assigned driver (can be ID or populated driver object)"
+        notes:
+          type: string
+          example: "Customer prefers front entrance pickup"
+        confirmedBy:
+          oneOf:
+            - type: string
+              example: "507f1f77bcf86cd799439011"
+            - $ref: '#/components/schemas/Admin'
+          description: "Admin who confirmed the booking"
+        confirmedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: "Timestamp when the booking was completed"
+        completionImages:
+          type: array
+          items:
+            type: string
+          description: "Array of image file paths for completion proof"
+          example: ["uploads/completion-images/photo1-1234567890.jpg", "uploads/completion-images/photo2-1234567891.jpg"]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    BookingStatusUpdate:
+      type: object
+      required:
+        - isPickedUp
+      properties:
+        isPickedUp:
+          type: boolean
+          example: true
+
+    BookingUpdate:
+      type: object
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          example: "Tran Thi B"
+        phoneNumber:
+          type: string
+          pattern: '^0\d{9,10}$'
+          example: "0987654321"
+        hotel:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+          description: "Hotel ID (ObjectId reference)"
+        arrivalTime:
+          type: string
+          example: "2024-12-25 14:30"
+        numberOfBags:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 2
+        status:
+          type: string
+          enum: [pending, confirmed, assigned, in_progress, completed, cancelled]
+          example: "confirmed"
+        assignedDriver:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+          description: "Driver ID to assign"
+        notes:
+          type: string
+          example: "Customer prefers front entrance pickup"
+
+    # Hotel Schemas
+    HotelCreate:
+      type: object
+      required:
+        - name
+        - address
+        - zone
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: "Grand Hotel Saigon"
+        address:
+          type: string
+          minLength: 1
+          example: "123 Nguyen Hue Street, District 1, Ho Chi Minh City"
+        zone:
+          type: string
+          enum: [zone1, zone2, zone3]
+          example: "zone1"
+          description: "Zone for transport pricing calculation"
+
+    HotelUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          example: "Grand Hotel Saigon"
+        address:
+          type: string
+          minLength: 1
+          example: "123 Nguyen Hue Street, District 1, Ho Chi Minh City"
+        zone:
+          type: string
+          enum: [zone1, zone2, zone3]
+          example: "zone1"
+        isActive:
+          type: boolean
+          example: true
+
+    Hotel:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+        name:
+          type: string
+          example: "Grand Hotel Saigon"
+        address:
+          type: string
+          example: "123 Nguyen Hue Street, District 1, Ho Chi Minh City"
+        zone:
+          type: string
+          enum: [zone1, zone2, zone3]
+          example: "zone1"
+        isActive:
+          type: boolean
+          example: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Response Schemas
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation successful"
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/Driver'
+            - $ref: '#/components/schemas/Admin'
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Error message"
+        errors:
+          type: array
+          items:
+            type: string
+          example: ["Validation error 1", "Validation error 2"]
+
+paths:
+  # Health Check
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Check if the API is running
+      responses:
+        '200':
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking API is running"
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  # Driver Authentication Endpoints
+  /api/auth/register:
+    post:
+      tags:
+        - Driver Authentication
+      summary: Register a new driver
+      description: Register a new driver account with vehicle information
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverRegistration'
+      responses:
+        '201':
+          description: Driver registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error or driver already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Driver Authentication
+      summary: Login driver
+      description: Login with phone number and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriverLogin'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Driver Authentication
+      summary: Get current driver profile
+      description: Get the profile of the currently authenticated driver
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Driver profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Driver'
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Driver not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Admin Authentication Endpoints
+  /api/admin/auth/login:
+    post:
+      tags:
+        - Admin Authentication
+      summary: Login admin
+      description: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLogin'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/auth/me:
+    get:
+      tags:
+        - Admin Authentication
+      summary: Get current admin profile
+      description: Get the profile of the currently authenticated admin
+      security:
+        - bearerAuthAdmin: []
+      responses:
+        '200':
+          description: Admin profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Admin'
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Admin not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Booking Endpoints
+  /api/booking:
+    post:
+      tags:
+        - Booking
+      summary: Create a new booking
+      description: Create a new luggage pick-up booking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingCreate'
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking created successfully"
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/bookings:
+    get:
+      tags:
+        - Booking
+      summary: Get all bookings
+      description: Retrieve all bookings with optional filtering
+      parameters:
+        - in: query
+          name: isPickedUp
+          schema:
+            type: boolean
+          description: Filter by pickup status
+          example: false
+      responses:
+        '200':
+          description: Bookings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 10
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/bookings/my-bookings:
+    get:
+      tags:
+        - Booking
+      summary: Get my bookings by deviceId (Public - No Auth)
+      description: Retrieve all bookings for a specific device. No authentication required - for mobile app use.
+      parameters:
+        - in: query
+          name: deviceId
+          required: true
+          schema:
+            type: string
+          description: Device ID from mobile app
+          example: "abc123-device-uuid-456"
+      responses:
+        '200':
+          description: Bookings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 3
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+        '400':
+          description: Device ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/booking/{id}:
+    get:
+      tags:
+        - Booking
+      summary: Get booking by ID
+      description: Retrieve a specific booking by its ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Booking ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Booking retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/booking/{id}/status:
+    patch:
+      tags:
+        - Booking
+      summary: Update booking status
+      description: Update the pickup status of a booking (mark as picked up)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Booking ID
+          example: "507f1f77bcf86cd799439011"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingStatusUpdate'
+      responses:
+        '200':
+          description: Booking status updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking status updated successfully"
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Driver Booking Endpoints
+  /api/bookings/driver/assigned:
+    get:
+      tags:
+        - Driver Booking
+      summary: Get assigned bookings for driver
+      description: Get all bookings assigned to the authenticated driver with status 'assigned'. Requires driver authentication.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Assigned bookings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 5
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Driver account deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/bookings/driver/history:
+    get:
+      tags:
+        - Driver Booking
+      summary: Get booking history for driver (picked up and completed)
+      description: |
+        Get all bookings with status 'in_progress' (picked up) or 'completed' for the authenticated driver.
+        This endpoint shows both bookings that are currently being delivered and bookings that have been completed.
+        Requires driver authentication and includes pagination support.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+          example: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Number of items per page
+          example: 20
+      responses:
+        '200':
+          description: Booking history retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 20
+                    description: Number of items returned in this page
+                  total:
+                    type: integer
+                    example: 150
+                    description: Total number of bookings in history (both in_progress and completed)
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 20
+                      totalPages:
+                        type: integer
+                        example: 8
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Booking'
+                    description: Array of bookings with status 'in_progress' or 'completed', sorted by most recently updated
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Driver account deactivated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/bookings/driver/{id}/picked-up:
+    patch:
+      tags:
+        - Driver Booking
+      summary: Mark booking as picked up
+      description: |
+        Mark a booking as picked up by the driver. This endpoint:
+        - Updates booking status from 'assigned' to 'in_progress'
+        - Sets isPickedUp to true
+        - Records the pickedUpAt timestamp
+        - Requires the booking to be assigned to the authenticated driver
+        - Only works if current status is 'assigned'
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Booking ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Booking marked as picked up successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking marked as picked up successfully"
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Invalid booking ID or wrong status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Cannot mark as picked up. Current status: completed"
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Booking not assigned to this driver
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "This booking is not assigned to you"
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/bookings/driver/{id}/completed:
+    patch:
+      tags:
+        - Driver Booking
+      summary: Mark booking as completed with images
+      description: |
+        Mark a booking as completed with proof images. This endpoint:
+        - Updates booking status from 'in_progress' to 'completed'
+        - Records the completedAt timestamp
+        - Saves uploaded completion images (max 5 images)
+        - Requires the booking to be assigned to the authenticated driver
+        - Only works if current status is 'in_progress' (must call picked-up endpoint first)
+        - Accepts images in JPEG, JPG, PNG, GIF, or WEBP format
+        - Max file size: 5MB per image
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Booking ID
+          example: "507f1f77bcf86cd799439011"
+      requestBody:
+        required: false
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Completion proof images (max 5 images, each max 5MB)
+                  maxItems: 5
+            encoding:
+              images:
+                contentType: image/jpeg, image/jpg, image/png, image/gif, image/webp
+      responses:
+        '200':
+          description: Booking marked as completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking marked as completed successfully"
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Invalid booking ID or wrong status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Cannot mark as completed. Current status: assigned. Please mark as picked up first."
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Booking not assigned to this driver
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "This booking is not assigned to you"
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Public Hotel Endpoints (for Mobile App)
+  /api/hotels/search:
+    get:
+      tags:
+        - Hotel
+      summary: Search hotels for autocomplete (Public - No Auth)
+      description: Search hotels by name or address for autocomplete input. Returns only active hotels. No authentication required - for mobile app use.
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search query (searches in hotel name and address)
+          example: "Grand"
+        - in: query
+          name: zone
+          schema:
+            type: string
+            enum: [zone1, zone2, zone3]
+          description: Filter by zone
+          example: "zone1"
+      responses:
+        '200':
+          description: Hotels found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                          example: "507f1f77bcf86cd799439011"
+                        name:
+                          type: string
+                          example: "Grand Hotel Saigon"
+                        address:
+                          type: string
+                          example: "123 Nguyen Hue Street, District 1, Ho Chi Minh City"
+                        zone:
+                          type: string
+                          example: "zone1"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Admin Booking Management Endpoints
+  /api/admin/bookings/{id}:
+    put:
+      tags:
+        - Admin Booking Management
+      summary: Update booking
+      description: Update booking information including status, assigned driver, and customer details
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Booking ID
+          example: "507f1f77bcf86cd799439011"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingUpdate'
+      responses:
+        '200':
+          description: Booking updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking updated successfully"
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Admin Hotel Management Endpoints
+  /api/admin/hotels:
+    get:
+      tags:
+        - Admin Hotel Management
+      summary: Get all hotels
+      description: Get all hotels with pagination and filtering
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search by name or address
+        - in: query
+          name: zone
+          schema:
+            type: string
+            enum: [zone1, zone2, zone3]
+          description: Filter by zone
+        - in: query
+          name: isActive
+          schema:
+            type: boolean
+          description: Filter by active status
+      responses:
+        '200':
+          description: Hotels retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Hotel'
+                  pagination:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        example: 50
+                      page:
+                        type: integer
+                        example: 1
+                      limit:
+                        type: integer
+                        example: 10
+                      totalPages:
+                        type: integer
+                        example: 5
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Admin Hotel Management
+      summary: Create new hotel
+      description: Create a new hotel record
+      security:
+        - bearerAuthAdmin: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelCreate'
+      responses:
+        '201':
+          description: Hotel created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Hotel created successfully"
+                  data:
+                    $ref: '#/components/schemas/Hotel'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/hotels/search:
+    get:
+      tags:
+        - Admin Hotel Management
+      summary: Search hotels for autocomplete
+      description: Search hotels by name or address for autocomplete input (returns only active hotels)
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search query
+        - in: query
+          name: zone
+          schema:
+            type: string
+            enum: [zone1, zone2, zone3]
+          description: Filter by zone
+      responses:
+        '200':
+          description: Hotels found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                          example: "507f1f77bcf86cd799439011"
+                        name:
+                          type: string
+                          example: "Grand Hotel Saigon"
+                        address:
+                          type: string
+                          example: "123 Nguyen Hue Street"
+                        zone:
+                          type: string
+                          example: "zone1"
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/hotels/{id}:
+    get:
+      tags:
+        - Admin Hotel Management
+      summary: Get hotel by ID
+      description: Get detailed information of a specific hotel
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Hotel ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Hotel retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Hotel'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Hotel not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Admin Hotel Management
+      summary: Update hotel
+      description: Update hotel information
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Hotel ID
+          example: "507f1f77bcf86cd799439011"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HotelUpdate'
+      responses:
+        '200':
+          description: Hotel updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Hotel updated successfully"
+                  data:
+                    $ref: '#/components/schemas/Hotel'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Hotel not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Admin Hotel Management
+      summary: Delete hotel
+      description: Delete a hotel record
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Hotel ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Hotel deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Hotel deleted successfully"
+                  data:
+                    $ref: '#/components/schemas/Hotel'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Hotel not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
