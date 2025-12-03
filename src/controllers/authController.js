@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
  */
 exports.register = async (req, res) => {
   try {
-    const { name, phone, driverLicenseNumber, vehicleInfo, password } = req.body;
+    const { name, phone, driverLicenseNumber, vehicleInfo, password, fcmToken } = req.body;
 
     // Validate request body
     const validation = Driver.validateDriverRegistration(req.body);
@@ -47,7 +47,8 @@ exports.register = async (req, res) => {
       phone,
       driverLicenseNumber,
       vehicleInfo,
-      password: hashedPassword
+      password: hashedPassword,
+      fcmToken: fcmToken || null
     });
 
     // Save to database
@@ -223,6 +224,87 @@ exports.getMe = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to get driver profile',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Update FCM token
+ * POST /api/auth/fcm-token
+ */
+exports.updateFcmToken = async (req, res) => {
+  try {
+    const { fcmToken } = req.body;
+
+    // Validate fcmToken
+    if (!fcmToken || typeof fcmToken !== 'string' || fcmToken.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'FCM token is required'
+      });
+    }
+
+    // Update driver's FCM token
+    const driver = await Driver.findByIdAndUpdate(
+      req.driver.id,
+      { fcmToken: fcmToken.trim() },
+      { new: true, runValidators: true }
+    );
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Driver not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'FCM token updated successfully',
+      data: {
+        fcmToken: driver.fcmToken
+      }
+    });
+  } catch (error) {
+    console.error('Error updating FCM token:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update FCM token',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Logout driver
+ * POST /api/auth/logout
+ */
+exports.logout = async (req, res) => {
+  try {
+    // Remove FCM token from driver's account
+    const driver = await Driver.findByIdAndUpdate(
+      req.driver.id,
+      { fcmToken: null },
+      { new: true, runValidators: true }
+    );
+
+    if (!driver) {
+      return res.status(404).json({
+        success: false,
+        message: 'Driver not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Error logging out driver:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to logout',
       error: error.message
     });
   }

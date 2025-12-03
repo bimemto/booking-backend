@@ -24,4 +24,18 @@ router.post('/login', authController.login);
  */
 router.get('/me', protect, authController.getMe);
 
+/**
+ * @route   POST /api/auth/fcm-token
+ * @desc    Update driver's FCM token
+ * @access  Private (requires authentication)
+ */
+router.post('/fcm-token', protect, authController.updateFcmToken);
+
+/**
+ * @route   POST /api/auth/logout
+ * @desc    Logout driver (removes FCM token)
+ * @access  Private (requires authentication)
+ */
+router.post('/logout', protect, authController.logout);
+
 module.exports = router;

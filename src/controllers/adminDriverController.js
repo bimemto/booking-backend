@@ -1,5 +1,6 @@
 const Driver = require('../models/Driver');
 const bcrypt = require('bcryptjs');
+const { sendDriverVerificationNotification } = require('../services/notificationService');
 
 /**
  * Get all drivers with filters
@@ -391,6 +392,11 @@ exports.verifyDriver = async (req, res) => {
 
     driver.isVerified = true;
     await driver.save();
+
+    // Send push notification if FCM token is available
+    if (driver.fcmToken) {
+      await sendDriverVerificationNotification(driver.fcmToken, driver.name);
+    }
 
     res.status(200).json({
       success: true,
