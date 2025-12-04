@@ -1,8 +1,10 @@
 require('dotenv').config();
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const { connectDB } = require('./config/database');
 const { initializeFirebase } = require('./services/notificationService');
+const { initializeWebSocket } = require('./services/websocketService');
 const bookingRoutes = require('./routes/bookingRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
@@ -14,6 +16,7 @@ const hotelRoutes = require('./routes/hotelRoutes');
 const seedRoutes = require('./routes/seedRoutes');
 
 const app = express();
+const httpServer = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
 // CORS Configuration
@@ -97,8 +100,11 @@ const startServer = async () => {
     // Initialize Firebase for push notifications
     initializeFirebase();
 
+    // Initialize WebSocket server
+    initializeWebSocket(httpServer);
+
     // Start Express server
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log(`\n🚀 Server is running on port ${PORT}`);
       console.log(`📍 API Base URL: http://localhost:${PORT}/api`);
       console.log(`💚 Health Check: http://localhost:${PORT}/health`);

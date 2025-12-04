@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const Customer = require('../models/Customer');
 const Hotel = require('../models/Hotel');
+const { emitBookingPickedUp, emitBookingCompleted } = require('../services/websocketService');
 
 /**
  * Create a new booking
@@ -393,6 +394,9 @@ exports.markAsPickedUp = async (req, res) => {
     await updatedBooking.populate('hotel', 'name address zone');
     await updatedBooking.populate('assignedDriver', 'name phone');
 
+    // Emit WebSocket event to admin panel
+    emitBookingPickedUp(updatedBooking);
+
     res.status(200).json({
       success: true,
       message: 'Booking marked as picked up successfully',
@@ -477,6 +481,9 @@ exports.markAsCompleted = async (req, res) => {
     // Populate and return
     await updatedBooking.populate('hotel', 'name address zone');
     await updatedBooking.populate('assignedDriver', 'name phone');
+
+    // Emit WebSocket event to admin panel
+    emitBookingCompleted(updatedBooking);
 
     res.status(200).json({
       success: true,
