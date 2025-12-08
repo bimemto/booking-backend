@@ -440,6 +440,8 @@ exports.updateBooking = async (req, res) => {
       fullName,
       phoneNumber,
       hotel,
+      bookingType,
+      pickupLocationAddress,
       arrivalTime,
       numberOfBags,
       status,
@@ -464,6 +466,25 @@ exports.updateBooking = async (req, res) => {
       const phoneRegex = /^0\d{9,10}$/;
       if (!phoneRegex.test(phoneNumber)) {
         errors.push('Invalid phone number format (must start with 0 and be 10-11 digits)');
+      }
+    }
+
+    // Validate bookingType if provided
+    if (bookingType !== undefined) {
+      if (!['Airport', 'Other'].includes(bookingType)) {
+        errors.push('Booking type must be either "Airport" or "Other"');
+      }
+    }
+
+    // Validate conditional fields based on bookingType
+    const finalBookingType = bookingType !== undefined ? bookingType : booking.bookingType;
+    if (finalBookingType === 'Airport') {
+      if (arrivalTime === undefined && !booking.arrivalTime) {
+        errors.push('Arrival time is required for Airport bookings');
+      }
+    } else if (finalBookingType === 'Other') {
+      if (pickupLocationAddress === undefined && !booking.pickupLocationAddress) {
+        errors.push('Pickup location address is required for Other bookings');
       }
     }
 
@@ -506,6 +527,8 @@ exports.updateBooking = async (req, res) => {
     if (fullName !== undefined) booking.fullName = fullName;
     if (phoneNumber !== undefined) booking.phoneNumber = phoneNumber;
     if (hotel !== undefined) booking.hotel = hotel;
+    if (bookingType !== undefined) booking.bookingType = bookingType;
+    if (pickupLocationAddress !== undefined) booking.pickupLocationAddress = pickupLocationAddress;
     if (arrivalTime !== undefined) booking.arrivalTime = arrivalTime;
     if (numberOfBags !== undefined) booking.numberOfBags = numberOfBags;
     if (status !== undefined) {

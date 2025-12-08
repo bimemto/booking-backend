@@ -64,6 +64,8 @@ exports.createBooking = async (req, res) => {
       phoneNumber: req.body.phoneNumber,
       email: req.body.email,
       hotel: req.body.hotel,
+      bookingType: req.body.bookingType || 'Airport',
+      pickupLocationAddress: req.body.pickupLocationAddress,
       arrivalTime: req.body.arrivalTime,
       numberOfBags: req.body.numberOfBags,
       deviceId: req.body.deviceId,
@@ -503,6 +505,63 @@ exports.markAsCompleted = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to mark booking as completed',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Cancel booking (customer only - before confirmation)
+ * PATCH /api/booking/:id/cancel
+ */
+exports.cancelBooking = async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+
+    // Find booking
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check if booking has already been confirmed
+    if (booking.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot cancel booking. Only pending bookings can be cancelled.',
+        currentStatus: booking.status
+      });
+    }
+
+    // Update booking status to cancelled
+    booking.status = 'cancelled';
+    await booking.save();
+
+    // Populate hotel info for response
+    await booking.populate('hotel', 'name address zone');
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking cancelled successfully',
+      data: booking
+    });
+  } catch (error) {
+    console.error('Error cancelling booking:', error);
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid booking ID'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel booking',
       error: error.message
     });
   }

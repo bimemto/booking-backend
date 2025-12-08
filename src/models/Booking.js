@@ -40,11 +40,25 @@ const bookingSchema = new mongoose.Schema({
     ref: 'Hotel',
     required: [true, 'Hotel is required']
   },
+  bookingType: {
+    type: String,
+    enum: ['Airport', 'Other'],
+    required: [true, 'Booking type is required'],
+    default: 'Airport'
+  },
+  pickupLocationAddress: {
+    type: String,
+    trim: true,
+    required: function() {
+      return this.bookingType === 'Other';
+    }
+  },
   arrivalTime: {
     type: String,
-    required: [true, 'Arrival time is required'],
     trim: true,
-    minlength: [1, 'Arrival time cannot be empty']
+    required: function() {
+      return this.bookingType === 'Airport';
+    }
   },
   numberOfBags: {
     type: Number,
@@ -131,8 +145,22 @@ bookingSchema.statics.validateBooking = function(data) {
     errors.push('Hotel is required');
   }
 
-  if (!data.arrivalTime || data.arrivalTime.trim().length === 0) {
-    errors.push('Arrival time is required');
+  // Validate booking type
+  if (!data.bookingType) {
+    errors.push('Booking type is required');
+  } else if (!['Airport', 'Other'].includes(data.bookingType)) {
+    errors.push('Booking type must be either "Airport" or "Other"');
+  }
+
+  // Conditional validation based on booking type
+  if (data.bookingType === 'Airport') {
+    if (!data.arrivalTime || data.arrivalTime.trim().length === 0) {
+      errors.push('Arrival time is required for Airport bookings');
+    }
+  } else if (data.bookingType === 'Other') {
+    if (!data.pickupLocationAddress || data.pickupLocationAddress.trim().length === 0) {
+      errors.push('Pickup location address is required for Other bookings');
+    }
   }
 
   const bags = parseInt(data.numberOfBags);

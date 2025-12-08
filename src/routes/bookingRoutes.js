@@ -32,6 +32,9 @@ router.patch('/bookings/driver/:id/completed', protect, upload.array('images', 5
 // Get booking by ID
 router.get('/booking/:id', bookingController.getBookingById);
 
+// Cancel booking (customer only - before confirmation)
+router.patch('/booking/:id/cancel', bookingController.cancelBooking);
+
 // Update booking status (mark as picked up) - deprecated, use driver routes above
 router.patch('/booking/:id/status', bookingController.updateBookingStatus);
 

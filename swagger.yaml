@@ -204,7 +204,7 @@ components:
         - fullName
         - phoneNumber
         - hotel
-        - arrivalTime
+        - bookingType
         - numberOfBags
         - deviceId
       properties:
@@ -221,9 +221,19 @@ components:
           type: string
           example: "507f1f77bcf86cd799439011"
           description: "Hotel ID (ObjectId reference)"
+        bookingType:
+          type: string
+          enum: [Airport, Other]
+          example: "Airport"
+          description: "Type of booking - Airport or Other pickup location"
+        pickupLocationAddress:
+          type: string
+          example: "123 Main Street, District 1, Ho Chi Minh City"
+          description: "Required when bookingType is 'Other'. Address of the pickup location."
         arrivalTime:
           type: string
           example: "2024-12-25 14:30"
+          description: "Required when bookingType is 'Airport'. Flight arrival time."
         numberOfBags:
           type: integer
           minimum: 1
@@ -253,9 +263,21 @@ components:
               description: "Hotel ID when not populated"
             - $ref: '#/components/schemas/Hotel'
           description: "Hotel reference (can be ID or populated hotel object)"
+        bookingType:
+          type: string
+          enum: [Airport, Other]
+          example: "Airport"
+          description: "Type of booking - Airport or Other pickup location. Always included in response."
+        pickupLocationAddress:
+          type: string
+          example: "123 Main Street, District 1, Ho Chi Minh City"
+          description: "Address of the pickup location (required for 'Other' booking type, null for 'Airport' booking type). Always included in response."
+          nullable: true
         arrivalTime:
           type: string
           example: "2024-12-25 14:30"
+          description: "Flight arrival time (required for 'Airport' booking type, null for 'Other' booking type). Always included in response."
+          nullable: true
         numberOfBags:
           type: integer
           example: 2
@@ -335,9 +357,19 @@ components:
           type: string
           example: "507f1f77bcf86cd799439011"
           description: "Hotel ID (ObjectId reference)"
+        bookingType:
+          type: string
+          enum: [Airport, Other]
+          example: "Airport"
+          description: "Type of booking - Airport or Other pickup location"
+        pickupLocationAddress:
+          type: string
+          example: "123 Main Street, District 1, Ho Chi Minh City"
+          description: "Address of the pickup location (required for 'Other' booking type)"
         arrivalTime:
           type: string
           example: "2024-12-25 14:30"
+          description: "Flight arrival time (required for 'Airport' booking type)"
         numberOfBags:
           type: integer
           minimum: 1
@@ -948,12 +980,74 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/booking/{id}/cancel:
+    patch:
+      tags:
+        - Booking
+      summary: Cancel booking (Customer - Before Confirmation)
+      description: |
+        Cancel a booking. Only allowed for bookings with status 'pending' (not yet confirmed by admin).
+        Once a booking is confirmed, assigned, or in progress, it cannot be cancelled through this endpoint.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Booking ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Booking cancelled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking cancelled successfully"
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Cannot cancel - booking already confirmed or in later stage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Cannot cancel booking. Only pending bookings can be cancelled."
+                  currentStatus:
+                    type: string
+                    example: "confirmed"
+        '404':
+          description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /api/booking/{id}/status:
     patch:
       tags:
         - Booking
-      summary: Update booking status
-      description: Update the pickup status of a booking (mark as picked up)
+      summary: Update booking status (Deprecated)
+      description: Update the pickup status of a booking (mark as picked up). This endpoint is deprecated, use driver-specific endpoints instead.
+      deprecated: true
       parameters:
         - in: path
           name: id
@@ -1009,12 +1103,21 @@ paths:
       tags:
         - Driver Booking
       summary: Get assigned bookings for driver
-      description: Get all bookings assigned to the authenticated driver with status 'assigned'. Requires driver authentication.
+      description: |
+        Get all bookings assigned to the authenticated driver with status 'assigned'.
+        Requires driver authentication.
+
+        **Response includes:**
+        - All booking details including `bookingType` and `pickupLocationAddress`
+        - Populated hotel information (name, address, zone)
+        - Customer contact information
+        - Arrival time for Airport bookings
+        - Pickup location address for Other bookings
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Assigned bookings retrieved successfully
+          description: Assigned bookings retrieved successfully. Each booking includes bookingType (Airport/Other) and pickupLocationAddress when applicable.
           content:
             application/json:
               schema:
