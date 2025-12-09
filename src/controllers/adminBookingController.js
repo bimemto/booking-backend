@@ -1,5 +1,6 @@
 const Booking = require('../models/Booking');
 const Driver = require('../models/Driver');
+const { isValidPhone } = require('../utils/phoneValidator');
 
 /**
  * Get all bookings with filters
@@ -463,9 +464,8 @@ exports.updateBooking = async (req, res) => {
 
     // Validate phone number if provided
     if (phoneNumber !== undefined) {
-      const phoneRegex = /^0\d{9,10}$/;
-      if (!phoneRegex.test(phoneNumber)) {
-        errors.push('Invalid phone number format (must start with 0 and be 10-11 digits)');
+      if (!isValidPhone(phoneNumber)) {
+        errors.push('Invalid phone number format');
       }
     }
 

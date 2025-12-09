@@ -1,6 +1,7 @@
 const Driver = require('../models/Driver');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { isValidPhone } = require('../utils/phoneValidator');
 
 /**
  * Register a new driver
@@ -120,8 +121,7 @@ exports.login = async (req, res) => {
     }
 
     // Validate phone format
-    const phoneRegex = /^0\d{9,10}$/;
-    if (!phoneRegex.test(phone)) {
+    if (!isValidPhone(phone)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid phone number format'

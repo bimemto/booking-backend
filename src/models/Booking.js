@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { isValidPhone } = require('../utils/phoneValidator');
 
 /**
  * Booking Schema for MongoDB
@@ -16,10 +17,10 @@ const bookingSchema = new mongoose.Schema({
     trim: true,
     validate: {
       validator: function(v) {
-        // Must start with 0 and be 10-11 digits
-        return /^0\d{9,10}$/.test(v);
+        // Validate international phone numbers using libphonenumber-js
+        return isValidPhone(v);
       },
-      message: 'Invalid phone number format (must start with 0 and be 10-11 digits)'
+      message: 'Invalid phone number format'
     }
   },
   email: {
@@ -134,11 +135,10 @@ bookingSchema.statics.validateBooking = function(data) {
     errors.push('Full name is required');
   }
 
-  const phoneRegex = /^0\d{9,10}$/;
   if (!data.phoneNumber || data.phoneNumber.trim().length === 0) {
     errors.push('Phone number is required');
-  } else if (!phoneRegex.test(data.phoneNumber)) {
-    errors.push('Invalid phone number format (must start with 0 and be 10-11 digits)');
+  } else if (!isValidPhone(data.phoneNumber)) {
+    errors.push('Invalid phone number format');
   }
 
   if (!data.hotel) {

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { isValidPhone } = require('../utils/phoneValidator');
 
 /**
  * Vehicle Information Schema
@@ -54,10 +55,10 @@ const driverSchema = new mongoose.Schema({
     trim: true,
     validate: {
       validator: function(v) {
-        // Must start with 0 and be 10-11 digits
-        return /^0\d{9,10}$/.test(v);
+        // Validate international phone numbers using libphonenumber-js
+        return isValidPhone(v);
       },
-      message: 'Invalid phone number format (must start with 0 and be 10-11 digits)'
+      message: 'Invalid phone number format'
     }
   },
   driverLicenseNumber: {
@@ -119,11 +120,10 @@ driverSchema.statics.validateDriverRegistration = function(data) {
   }
 
   // Phone validation
-  const phoneRegex = /^0\d{9,10}$/;
   if (!data.phone || data.phone.trim().length === 0) {
     errors.push('Phone number is required');
-  } else if (!phoneRegex.test(data.phone)) {
-    errors.push('Invalid phone number format (must start with 0 and be 10-11 digits)');
+  } else if (!isValidPhone(data.phone)) {
+    errors.push('Invalid phone number format');
   }
 
   // Driver license validation
