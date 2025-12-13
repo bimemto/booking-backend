@@ -32,6 +32,9 @@ router.patch('/bookings/driver/:id/completed', protect, upload.array('images', 5
 // Get booking by ID
 router.get('/booking/:id', bookingController.getBookingById);
 
+// Edit booking (customer only - before confirmation)
+router.patch('/booking/:id/edit', bookingController.editBooking);
+
 // Cancel booking (customer only - before confirmation)
 router.patch('/booking/:id/cancel', bookingController.cancelBooking);
 

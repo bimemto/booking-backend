@@ -8,6 +8,7 @@ const { initializeWebSocket } = require('./services/websocketService');
 const bookingRoutes = require('./routes/bookingRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminAuthRoutes = require('./routes/adminAuthRoutes');
+const adminUserRoutes = require('./routes/adminUserRoutes');
 const adminBookingRoutes = require('./routes/adminBookingRoutes');
 const adminDriverRoutes = require('./routes/adminDriverRoutes');
 const adminCustomerRoutes = require('./routes/adminCustomerRoutes');
@@ -65,6 +66,7 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/admin/auth', adminAuthRoutes);
+app.use('/api/admin/users', adminUserRoutes);
 app.use('/api/admin/bookings', adminBookingRoutes);
 app.use('/api/admin/drivers', adminDriverRoutes);
 app.use('/api/admin/customers', adminCustomerRoutes);
@@ -116,6 +118,13 @@ const startServer = async () => {
       console.log(`\nAdmin Authentication:`);
       console.log(`  POST   /api/admin/auth/login - Login admin`);
       console.log(`  GET    /api/admin/auth/me    - Get current admin profile (requires auth)`);
+      console.log(`\nAdmin User Management:`);
+      console.log(`  GET    /api/admin/users           - Get all admin users with filters (requires auth)`);
+      console.log(`  POST   /api/admin/users           - Create new admin user (requires auth)`);
+      console.log(`  GET    /api/admin/users/:id       - Get admin user by ID (requires auth)`);
+      console.log(`  PATCH  /api/admin/users/:id       - Update admin user (requires auth)`);
+      console.log(`  PATCH  /api/admin/users/:id/toggle-active - Toggle admin active status (requires auth)`);
+      console.log(`  DELETE /api/admin/users/:id       - Delete admin user (requires auth)`);
       console.log(`\nAdmin Booking Management:`);
       console.log(`  GET    /api/admin/bookings       - Get all bookings with filters (requires auth)`);
       console.log(`  GET    /api/admin/bookings/stats - Get booking statistics (requires auth)`);

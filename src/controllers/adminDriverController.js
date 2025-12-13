@@ -350,7 +350,7 @@ exports.toggleDriverActive = async (req, res) => {
     }
 
     driver.isActive = !driver.isActive;
-    await driver.save();
+    await driver.save({ validateModifiedOnly: true });
 
     res.status(200).json({
       success: true,
@@ -391,7 +391,7 @@ exports.verifyDriver = async (req, res) => {
     }
 
     driver.isVerified = true;
-    await driver.save();
+    await driver.save({ validateModifiedOnly: true });
 
     // Send push notification if FCM token is available
     if (driver.fcmToken) {

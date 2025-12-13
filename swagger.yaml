@@ -17,6 +17,8 @@ tags:
     description: Driver registration, login, and profile management
   - name: Admin Authentication
     description: Admin login and profile management
+  - name: Admin User Management
+    description: Admin user CRUD operations - create and manage admin accounts
   - name: Booking
     description: Booking creation and management
   - name: Driver Booking
@@ -341,6 +343,48 @@ components:
         isPickedUp:
           type: boolean
           example: true
+
+    BookingEdit:
+      type: object
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          example: "Tran Thi C"
+          description: "Customer full name"
+        phoneNumber:
+          type: string
+          pattern: '^0\d{9,10}$'
+          example: "0987654321"
+          description: "Customer phone number (must start with 0 and be 10-11 digits)"
+        email:
+          type: string
+          format: email
+          example: "customer@example.com"
+          description: "Customer email (optional)"
+        hotel:
+          type: string
+          example: "507f1f77bcf86cd799439011"
+          description: "Hotel ID (ObjectId reference)"
+        bookingType:
+          type: string
+          enum: [Airport, Other]
+          example: "Other"
+          description: "Type of booking - Airport or Other pickup location"
+        pickupLocationAddress:
+          type: string
+          example: "456 Le Loi Street, District 1, Ho Chi Minh City"
+          description: "Address of the pickup location (required for 'Other' booking type)"
+        arrivalTime:
+          type: string
+          example: "2024-12-25 16:30"
+          description: "Flight arrival time (required for 'Airport' booking type)"
+        numberOfBags:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 3
+          description: "Number of bags (1-5)"
 
     BookingUpdate:
       type: object
@@ -815,6 +859,408 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # Admin User Management Endpoints
+  /api/admin/users:
+    get:
+      tags:
+        - Admin User Management
+      summary: Get all admin users
+      description: Get all admin users with filters and pagination
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+          example: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Number of items per page
+          example: 20
+        - in: query
+          name: isActive
+          schema:
+            type: boolean
+          description: Filter by active status
+          example: true
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [admin, super_admin]
+          description: Filter by role
+          example: "admin"
+        - in: query
+          name: search
+          schema:
+            type: string
+          description: Search by name or email
+          example: "john"
+      responses:
+        '200':
+          description: Admin users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      admins:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Admin'
+                      pagination:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                            example: 50
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          pages:
+                            type: integer
+                            example: 3
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags:
+        - Admin User Management
+      summary: Create new admin user
+      description: Create a new admin user account
+      security:
+        - bearerAuthAdmin: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                name:
+                  type: string
+                  example: "John Admin"
+                  description: "Admin name (optional, defaults to email prefix)"
+                email:
+                  type: string
+                  format: email
+                  example: "admin@example.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "password123"
+                role:
+                  type: string
+                  enum: [admin, super_admin]
+                  default: admin
+                  example: "admin"
+      responses:
+        '201':
+          description: Admin user created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Admin user created successfully"
+                  data:
+                    $ref: '#/components/schemas/Admin'
+        '400':
+          description: Validation error or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/users/{id}:
+    get:
+      tags:
+        - Admin User Management
+      summary: Get admin user by ID
+      description: Get detailed information of a specific admin user
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Admin user ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Admin user retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Admin'
+        '400':
+          description: Invalid admin ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Admin user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags:
+        - Admin User Management
+      summary: Update admin user
+      description: Update admin user information
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Admin user ID
+          example: "507f1f77bcf86cd799439011"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "John Admin Updated"
+                email:
+                  type: string
+                  format: email
+                  example: "newemail@example.com"
+                password:
+                  type: string
+                  minLength: 6
+                  example: "newpassword123"
+                  description: "Optional - only provide if changing password"
+                role:
+                  type: string
+                  enum: [admin, super_admin]
+                  example: "super_admin"
+                isActive:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Admin user updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Admin user updated successfully"
+                  data:
+                    $ref: '#/components/schemas/Admin'
+        '400':
+          description: Validation error or email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Admin user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Admin User Management
+      summary: Delete admin user
+      description: Delete an admin user. You cannot delete your own account.
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Admin user ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Admin user deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Admin user deleted successfully"
+        '400':
+          description: Cannot delete own account or invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Admin user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/admin/users/{id}/toggle-active:
+    patch:
+      tags:
+        - Admin User Management
+      summary: Toggle admin active status
+      description: Activate or deactivate an admin user. You cannot deactivate your own account.
+      security:
+        - bearerAuthAdmin: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Admin user ID
+          example: "507f1f77bcf86cd799439011"
+      responses:
+        '200':
+          description: Admin status toggled successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Admin user activated successfully"
+                  data:
+                    $ref: '#/components/schemas/Admin'
+        '400':
+          description: Cannot deactivate own account or invalid ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Admin user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # Booking Endpoints
   /api/booking:
     post:
@@ -969,6 +1415,114 @@ paths:
                     $ref: '#/components/schemas/Booking'
         '404':
           description: Booking not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/booking/{id}/edit:
+    patch:
+      tags:
+        - Booking
+      summary: Edit booking (Customer - Before Confirmation)
+      description: |
+        Edit a booking. Only allowed for bookings with status 'pending' (not yet confirmed by admin).
+        Once a booking is confirmed, assigned, or in progress, it cannot be edited through this endpoint.
+
+        **Editable fields:**
+        - fullName: Customer full name
+        - phoneNumber: Customer phone number
+        - email: Customer email (optional)
+        - hotel: Hotel ID
+        - bookingType: Airport or Other
+        - pickupLocationAddress: Required for 'Other' bookings
+        - arrivalTime: Required for 'Airport' bookings
+        - numberOfBags: Number of bags (1-5)
+
+        **Notes:**
+        - All fields are optional - only send the fields you want to update
+        - If changing phone number, customer record will be updated or created
+        - If changing hotel, the new hotel must exist and be active
+        - Full validation is performed on the combined data (existing + updates)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Booking ID
+          example: "507f1f77bcf86cd799439011"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingEdit'
+            examples:
+              updateBasicInfo:
+                summary: Update basic customer info
+                value:
+                  fullName: "Nguyen Van C"
+                  phoneNumber: "0912345678"
+                  email: "customer@example.com"
+              changeBags:
+                summary: Change number of bags
+                value:
+                  numberOfBags: 3
+              changeBookingType:
+                summary: Change from Airport to Other
+                value:
+                  bookingType: "Other"
+                  pickupLocationAddress: "123 Le Loi Street, District 1"
+              changeHotel:
+                summary: Change hotel
+                value:
+                  hotel: "507f1f77bcf86cd799439099"
+      responses:
+        '200':
+          description: Booking updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Booking updated successfully"
+                  data:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Validation error or cannot edit - booking already confirmed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Cannot edit booking. Only pending bookings can be edited."
+                  currentStatus:
+                    type: string
+                    example: "confirmed"
+                  errors:
+                    type: array
+                    items:
+                      type: string
+                    example: ["Number of bags must be between 1 and 5"]
+        '404':
+          description: Booking or hotel not found
           content:
             application/json:
               schema:

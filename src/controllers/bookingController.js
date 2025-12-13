@@ -511,6 +511,165 @@ exports.markAsCompleted = async (req, res) => {
 };
 
 /**
+ * Edit booking (customer only - before confirmation)
+ * PATCH /api/booking/:id/edit
+ */
+exports.editBooking = async (req, res) => {
+  try {
+    const bookingId = req.params.id;
+
+    // Find booking
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check if booking has already been confirmed
+    if (booking.status !== 'pending') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot edit booking. Only pending bookings can be edited.',
+        currentStatus: booking.status
+      });
+    }
+
+    // Prepare update data
+    const updateData = {};
+    const allowedFields = [
+      'fullName',
+      'phoneNumber',
+      'email',
+      'hotel',
+      'bookingType',
+      'pickupLocationAddress',
+      'arrivalTime',
+      'numberOfBags'
+    ];
+
+    // Only update fields that are provided in request body
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updateData[field] = req.body[field];
+      }
+    });
+
+    // If no fields to update
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'No valid fields to update'
+      });
+    }
+
+    // Validate the update data
+    const validation = Booking.validateBooking({
+      ...booking.toObject(),
+      ...updateData
+    });
+
+    if (!validation.isValid) {
+      return res.status(400).json({
+        success: false,
+        errors: validation.errors
+      });
+    }
+
+    // If hotel is being changed, verify it exists and is active
+    if (updateData.hotel && updateData.hotel !== booking.hotel.toString()) {
+      const hotel = await Hotel.findById(updateData.hotel);
+      if (!hotel) {
+        return res.status(404).json({
+          success: false,
+          message: 'Hotel not found'
+        });
+      }
+
+      if (!hotel.isActive) {
+        return res.status(400).json({
+          success: false,
+          message: 'Hotel is not active'
+        });
+      }
+    }
+
+    // Update booking
+    Object.assign(booking, updateData);
+    await booking.save();
+
+    // If phone number changed, update customer record
+    if (updateData.phoneNumber && updateData.phoneNumber !== booking.phoneNumber) {
+      let customer = await Customer.findOne({ phoneNumber: updateData.phoneNumber });
+
+      if (customer) {
+        customer.fullName = updateData.fullName || booking.fullName;
+        if (updateData.email) {
+          customer.email = updateData.email;
+        }
+        await customer.save();
+      } else {
+        customer = new Customer({
+          fullName: updateData.fullName || booking.fullName,
+          phoneNumber: updateData.phoneNumber,
+          email: updateData.email || booking.email,
+          totalBookings: 1,
+          lastBookingDate: new Date()
+        });
+        await customer.save();
+      }
+    } else if (updateData.fullName || updateData.email) {
+      // Update existing customer info if name or email changed
+      const customer = await Customer.findOne({ phoneNumber: booking.phoneNumber });
+      if (customer) {
+        if (updateData.fullName) {
+          customer.fullName = updateData.fullName;
+        }
+        if (updateData.email) {
+          customer.email = updateData.email;
+        }
+        await customer.save();
+      }
+    }
+
+    // Populate hotel info for response
+    await booking.populate('hotel', 'name address zone');
+
+    res.status(200).json({
+      success: true,
+      message: 'Booking updated successfully',
+      data: booking
+    });
+  } catch (error) {
+    console.error('Error editing booking:', error);
+
+    // Handle Mongoose validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        errors
+      });
+    }
+
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid booking or hotel ID'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to edit booking',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Cancel booking (customer only - before confirmation)
  * PATCH /api/booking/:id/cancel
  */
