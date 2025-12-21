@@ -91,6 +91,13 @@ exports.getBookingStats = async (req, res) => {
       }
     }
 
+    // Get today's date range
+    const now = new Date();
+    const startOfDay = new Date(now);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(now);
+    endOfDay.setHours(23, 59, 59, 999);
+
     // Get statistics
     const [
       totalBookings,
@@ -99,7 +106,8 @@ exports.getBookingStats = async (req, res) => {
       assignedBookings,
       inProgressBookings,
       completedBookings,
-      cancelledBookings
+      cancelledBookings,
+      todayBookings,
     ] = await Promise.all([
       Booking.countDocuments(dateFilter),
       Booking.countDocuments({ ...dateFilter, status: 'pending' }),
@@ -107,22 +115,24 @@ exports.getBookingStats = async (req, res) => {
       Booking.countDocuments({ ...dateFilter, status: 'assigned' }),
       Booking.countDocuments({ ...dateFilter, status: 'in_progress' }),
       Booking.countDocuments({ ...dateFilter, status: 'completed' }),
-      Booking.countDocuments({ ...dateFilter, status: 'cancelled' })
+      Booking.countDocuments({ ...dateFilter, status: 'cancelled' }),
+      Booking.countDocuments({ createdAt: { $gte: startOfDay, $lte: endOfDay } }),
     ]);
 
     res.status(200).json({
       success: true,
       data: {
         total: totalBookings,
+        todayBookings,
         byStatus: {
           pending: pendingBookings,
           confirmed: confirmedBookings,
           assigned: assignedBookings,
           in_progress: inProgressBookings,
           completed: completedBookings,
-          cancelled: cancelledBookings
-        }
-      }
+          cancelled: cancelledBookings,
+        },
+      },
     });
   } catch (error) {
     console.error('Error getting booking stats:', error);
