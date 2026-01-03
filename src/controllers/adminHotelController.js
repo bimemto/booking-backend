@@ -1,4 +1,5 @@
 const Hotel = require('../models/Hotel');
+const mongoose = require('mongoose');
 
 // Get all hotels with pagination and search
 exports.getAllHotels = async (req, res) => {
@@ -56,6 +57,14 @@ exports.getAllHotels = async (req, res) => {
 // Get hotel by ID
 exports.getHotelById = async (req, res) => {
   try {
+    // Validate hotel ID
+    if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid hotel ID'
+      });
+    }
+
     const hotel = await Hotel.findById(req.params.id);
 
     if (!hotel) {
@@ -124,6 +133,14 @@ exports.createHotel = async (req, res) => {
 // Update hotel
 exports.updateHotel = async (req, res) => {
   try {
+    // Validate hotel ID
+    if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid hotel ID'
+      });
+    }
+
     const { name, address, zone, isActive } = req.body;
 
     // Validate zone if provided
@@ -170,6 +187,14 @@ exports.updateHotel = async (req, res) => {
 // Delete hotel
 exports.deleteHotel = async (req, res) => {
   try {
+    // Validate hotel ID
+    if (!req.params.id || !mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid hotel ID'
+      });
+    }
+
     const hotel = await Hotel.findByIdAndDelete(req.params.id);
 
     if (!hotel) {
